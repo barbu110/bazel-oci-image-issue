@@ -1,0 +1,50 @@
+load("@rules_distroless//apt:defs.bzl", "dpkg_status")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
+
+_PACKAGES = [
+    "@noble//ncurses-base",
+    "@noble//libncurses6",
+    "@noble//tzdata",
+    "@noble//bash",
+    "@noble//coreutils",
+    "@noble//dpkg",
+    "@noble//apt",
+    "@noble//perl",
+    # Comment the line below to make the image work!
+    "@noble//qbittorrent-nox",
+]
+
+dpkg_status(
+    name = "dpkg_status",
+    controls = select({
+        "@platforms//cpu:arm64": ["%s/arm64:control" % p for p in _PACKAGES],
+        "@platforms//cpu:x86_64": ["%s/amd64:control" % p for p in _PACKAGES],
+    }),
+)
+
+oci_image(
+    name = "my_image",
+    architecture = select({
+        "@platforms//cpu:arm64": "arm64",
+        "@platforms//cpu:x86_64": "amd64",
+    }),
+    os = "linux",
+    tars = [
+        "//ubuntu_noble:sh",
+        "//ubuntu_noble:passwd",
+        "//ubuntu_noble:group",
+        ":dpkg_status",
+    ] + select({
+        "@platforms//cpu:arm64": ["%s/arm64" % p for p in _PACKAGES],
+        "@platforms//cpu:x86_64": ["%s/amd64" % p for p in _PACKAGES],
+    }),
+    visibility = ["//visibility:public"],
+)
+
+oci_load(
+    name = "tarball",
+    image = ":my_image",
+    repo_tags = [
+        "bazel-oci-image-issue/my_image:latest",
+    ],
+)

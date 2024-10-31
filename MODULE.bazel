@@ -1,0 +1,31 @@
+module(
+    name = "bazel-oci-image-issue",
+    version = "1.0",
+)
+
+bazel_dep(name = "rules_oci", version = "2.0.1")
+bazel_dep(name = "rules_distroless", version = "0.3.8")
+bazel_dep(name = "aspect_bazel_lib", version = "2.9.3")
+
+oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
+oci.pull(
+    name = "distroless_base",
+    image = "gcr.io/distroless/base",
+    platforms = [
+        "linux/amd64",
+        "linux/arm64",
+    ],
+    tag = "latest",
+)
+
+# For each oci.pull call, repeat the "name" here to expose them as dependencies.
+use_repo(oci, "distroless_base", "distroless_base_linux_amd64", "distroless_base_linux_arm64")
+
+# //download_station Ubuntu packages
+apt = use_extension("@rules_distroless//apt:extensions.bzl", "apt")
+apt.install(
+    name = "noble",
+    lock = "//ubuntu_noble:noble.lock.json",
+    manifest = "//ubuntu_noble:noble.yaml",
+)
+use_repo(apt, "noble")
